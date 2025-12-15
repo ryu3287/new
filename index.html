@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📸 写真位置地図</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <div class="container">
+        <h1>📸 写真位置地図アプリ</h1>
+        <p class="subtitle">写真のEXIF GPS情報から撮影地点を表示します</p>
+        
+        <div class="upload-section">
+            <input type="file" id="imageInput" accept="image/*">
+            <input type="text" id="commentInput" placeholder="コメント（任意）">
+            <button id="analyzeBtn">地図に表示</button>
+        </div>
+        
+        <div id="preview" class="preview" style="display:none;">
+            <img id="previewImg" src="" alt="Preview">
+        </div>
+        
+        <div id="gpsInfo" class="gps-info" style="display:none;">
+            <h3>📍 撮影地点情報</h3>
+            <p><strong>緯度:</strong> <span id="latitude"></span></p>
+            <p><strong>経度:</strong> <span id="longitude"></span></p>
+            <p id="commentDisplay"></p>
+        </div>
+        
+        <div id="map" class="map"></div>
+        
+        <div id="loading" class="loading" style="display:none;">
+            処理中...
+        </div>
+        
+        <div id="error" class="error" style="display:none;"></div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
