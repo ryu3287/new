@@ -10,23 +10,53 @@
 <body>
     <div class="container">
         <h1>📸 写真位置地図アプリ</h1>
-        <p class="subtitle">写真のEXIF GPS情報から撮影地点を表示します</p>
+        <p class="subtitle">写真と場所名を入力して地図に表示</p>
         
         <div class="upload-section">
-            <input type="file" id="imageInput" accept="image/*">
-            <input type="text" id="commentInput" placeholder="コメント（任意）">
-            <button id="analyzeBtn">地図に表示</button>
+            <input type="file" id="imageInput" accept="image/*" multiple>
+            <input type="text" id="placeInput" placeholder="場所名を入力（例：東京タワー、浅草寺）">
+            <button id="displayBtn">地図に表示</button>
         </div>
         
         <div id="preview" class="preview" style="display:none;">
-            <img id="previewImg" src="" alt="Preview">
+            <div id="previewContainer"></div>
         </div>
         
-        <div id="gpsInfo" class="gps-info" style="display:none;">
-            <h3>📍 撮影地点情報</h3>
+        <div id="locationInfo" class="location-info" style="display:none;">
+            <h3>📍 場所情報</h3>
+            <p><strong>場所名:</strong> <span id="placeName"></span></p>
             <p><strong>緯度:</strong> <span id="latitude"></span></p>
             <p><strong>経度:</strong> <span id="longitude"></span></p>
-            <p id="commentDisplay"></p>
+            <textarea id="commentInput" placeholder="この場所についてのコメント（任意）" class="comment-textarea"></textarea>
+            <input type="text" id="tagInput" placeholder="タグを入力（例：観光地, カフェ, 自然 - カンマで区切る）" class="tag-input">
+            <button id="saveBtn" class="save-btn">💾 この場所を保存</button>
+        </div>
+        
+        <div id="savedLocations" class="saved-locations" style="display:none;">
+            <h3>📌 保存した場所</h3>
+            <ul id="locationList"></ul>
+            <button id="clearBtn" class="clear-btn">全て削除</button>
+        </div>
+        
+        <div id="editModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeEditModal()">&times;</span>
+                <h3>📝 場所を編集</h3>
+                <p><strong>場所名:</strong> <span id="editPlaceName"></span></p>
+                <textarea id="editCommentInput" placeholder="コメント" class="comment-textarea"></textarea>
+                <input type="text" id="editTagInput" placeholder="タグ（カンマで区切る）" class="tag-input">
+                <div class="edit-actions">
+                    <button id="saveEditBtn" class="save-btn">💾 保存</button>
+                    <button class="cancel-btn" onclick="closeEditModal()">キャンセル</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="savedImageModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <img id="modalImage" src="" alt="Saved Image">
+            </div>
         </div>
         
         <div id="map" class="map"></div>

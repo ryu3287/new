@@ -1,10 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import base64
-import io
-from PIL import Image
-from PIL.ExifTags import TAGS, GPSTAGS
-import os
+import requests
 
 app = Flask(__name__)
 
@@ -15,68 +11,49 @@ CORS(app,
     methods=["GET", "POST", "OPTIONS"]
 )
 
-def get_decimal_from_dms(dms, ref):
-    """DMS形式の座標をDecimal形式に変換"""
-    degrees, minutes, seconds = dms
-    decimal = degrees + (minutes / 60.0) + (seconds / 3600.0)
-    if ref in ['S', 'W']:
-        decimal = -decimal
-    return decimal
-
-def extract_gps_from_exif(image_data):
-    """画像のEXIFからGPS情報を抽出"""
+def geocode_place(place_name):
+    """Nominatim APIで場所名から緯度経度を取得"""
     try:
-        image = Image.open(io.BytesIO(image_data))
-        exif_data = image._getexif()
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            "q": place_name,
+            "format": "json",
+            "limit": 1
+        }
+        headers = {"User-Agent": "photo-location-map"}
         
-        if exif_data is None:
-            return {"error": "EXIF情報が見つかりません"}
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        data = response.json()
         
-        gps_data = {}
-        for tag_id, value in exif_data.items():
-            tag_name = TAGS.get(tag_id, tag_id)
-            if tag_name == "GPSInfo":
-                for t in value:
-                    sub_tag = GPSTAGS.get(t, t)
-                    gps_data[sub_tag] = value[t]
+        if not data:
+            return {"error": f"'{place_name}' が見つかりません"}
         
-        if not gps_data:
-            return {"error": "GPS情報が見つかりません"}
-        
-        # 緯度・経度を取得
-        lat = get_decimal_from_dms(gps_data['GPSLatitude'], gps_data['GPSLatitudeRef'])
-        lon = get_decimal_from_dms(gps_data['GPSLongitude'], gps_data['GPSLongitudeRef'])
-        
+        result = data[0]
         return {
-            "lat": lat,
-            "lon": lon,
-            "has_gps": True
+            "lat": float(result["lat"]),
+            "lon": float(result["lon"]),
+            "display_name": result.get("display_name", place_name)
         }
     
-    except AttributeError:
-        return {"error": "EXIF情報を読み込めません"}
+    except requests.Timeout:
+        return {"error": "タイムアウト: サーバーが応答しません"}
     except Exception as e:
         return {"error": f"エラー: {str(e)}"}
 
-@app.route("/api/analyze", methods=["POST", "OPTIONS"])
-def analyze_image():
-    """画像のGPS情報を抽出"""
+@app.route("/api/geocode", methods=["POST", "OPTIONS"])
+def geocode():
+    """場所名から座標を取得"""
     if request.method == "OPTIONS":
         return "", 204
     
     try:
         data = request.json
-        image_base64 = data.get("image")
-        comment = data.get("comment", "")
+        place = data.get("place", "").strip()
         
-        if not image_base64:
-            return jsonify({"error": "画像が選択されていません"}), 400
+        if not place:
+            return jsonify({"error": "場所名が入力されていません"}), 400
         
-        # Base64 → バイナリ変換
-        image_data = base64.b64decode(image_base64)
-        
-        # GPS情報抽出
-        result = extract_gps_from_exif(image_data)
+        result = geocode_place(place)
         
         if "error" in result:
             return jsonify(result), 400
@@ -84,20 +61,65 @@ def analyze_image():
         return jsonify({
             "lat": result["lat"],
             "lon": result["lon"],
-            "comment": comment,
-            "has_gps": True
+            "display_name": result["display_name"]
         })
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/landmarks", methods=["GET"])
-def get_landmarks():
-    return jsonify({"status": "ok"})
+@app.route("/api/suggest", methods=["POST", "OPTIONS"])
+def suggest_places():
+    """場所名の候補を提案"""
+    if request.method == "OPTIONS":
+        return "", 204
+    
+    try:
+        data = request.json
+        query = data.get("query", "").strip()
+        
+        if not query or len(query) < 2:
+            return jsonify({"suggestions": []}), 400
+        
+        suggestions = get_place_suggestions(query)
+        
+        return jsonify({
+            "suggestions": suggestions
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def get_place_suggestions(query):
+    """Nominatim APIから場所候補を取得"""
+    try:
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            "q": query,
+            "format": "json",
+            "limit": 10
+        }
+        headers = {"User-Agent": "photo-location-map"}
+        
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        data = response.json()
+        
+        suggestions = []
+        for item in data:
+            suggestions.append({
+                "name": item.get("name", ""),
+                "display_name": item.get("display_name", ""),
+                "lat": float(item.get("lat", 0)),
+                "lon": float(item.get("lon", 0))
+            })
+        
+        return suggestions
+    
+    except Exception as e:
+        return []
 
 @app.route("/", methods=["GET"])
 def index():
-    return "Photo Location Map API (EXIF GPS)"
+    return "Photo Location Map API"
 
 if __name__ == "__main__":
     print("🚀 Photo Location Map API 起動中...")
